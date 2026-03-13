@@ -1,0 +1,57 @@
+{
+  "skill_name": "create-skill",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to create a skill that helps agents deploy our app to staging. The deploy process is: run `make build`, then `kubectl apply -f k8s/staging/`, then verify with `kubectl get pods -n staging`. It needs kubectl and make installed.",
+      "expected_output": "A SKILL.md file is created with correct frontmatter, the three deploy commands in order, a compatibility field mentioning kubectl and make, and a description that mentions deployment and staging.",
+      "assertions": [
+        "The generated SKILL.md has valid YAML frontmatter with name and description fields",
+        "The name field is lowercase with hyphens only and matches the directory name",
+        "The description mentions deployment, staging, and when to use the skill",
+        "The description is written in third person",
+        "The body includes the exact commands: make build, kubectl apply, kubectl get pods",
+        "The commands are presented in the correct sequential order",
+        "The compatibility field mentions kubectl and make",
+        "The agent asks clarifying questions before writing (e.g. where to place the skill, whether it's multi-session)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "hey can you make me a skill for working with our database? we use postgres and there's some queries we run a lot",
+      "expected_output": "The agent asks clarifying questions to understand what specific queries, what the agent needs to know that it does not already know, and what the skill should actually contain. It does NOT immediately generate a vague SKILL.md.",
+      "assertions": [
+        "The agent asks what specific queries or tasks the skill should cover",
+        "The agent asks what context an agent would need that it does not already know (connection details, schema, naming conventions, etc.)",
+        "The agent does NOT generate a SKILL.md before gathering requirements",
+        "The agent asks where the skill should be placed"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Create a skill for our PDF invoice processing pipeline. It needs to extract line items from PDF invoices, validate totals, and output a JSON summary. We have a Python script at scripts/extract_invoice.py that does the extraction. The skill should also handle malformed PDFs gracefully. Put it in .agents/skills/.",
+      "expected_output": "A well-structured SKILL.md with the Python script referenced, error handling guidance for malformed PDFs, and the workflow broken into clear steps. The description includes keywords like PDF, invoice, extraction.",
+      "assertions": [
+        "The SKILL.md frontmatter has a name matching the directory name",
+        "The description includes keywords: PDF, invoice, extraction, line items",
+        "The body references scripts/extract_invoice.py with the correct relative path using forward slashes",
+        "The body includes guidance on handling malformed PDFs as an edge case",
+        "The workflow is broken into sequential steps (extract, validate, output)",
+        "The body does NOT explain what a PDF is or how Python works",
+        "The total SKILL.md is under 500 lines"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I created a skill but the agent never activates it. The frontmatter says: name: My-Helper, description: helps with stuff. Can you fix it?",
+      "expected_output": "The agent identifies both problems: the name violates naming rules (uppercase, no hyphens as separators) and the description is too vague for discovery. It fixes both.",
+      "assertions": [
+        "The agent identifies that 'My-Helper' violates naming rules (uppercase not allowed)",
+        "The agent identifies that 'helps with stuff' is too vague for skill discovery",
+        "The agent proposes a corrected name in lowercase with proper hyphen usage",
+        "The agent proposes a specific description that says what the skill does and when to use it",
+        "The agent mentions that the directory name must match the name field"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "skill_name": "goals-app",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to refactor the authentication module in our API. It's spread across src/auth/login.ts, src/auth/token.ts, and src/middleware/auth-check.ts. Can you set up goals to track this work?",
+      "expected_output": "One top-level goal for the refactoring objective, with sub-goals for each file or logical step. All goals should reference specific file paths and describe what needs to happen in each.",
+      "assertions": [
+        "A top-level goal is created with a title that mentions auth refactoring",
+        "At least 2 sub-goals are created using --parent_id pointing to the top-level goal",
+        "Goal descriptions include specific file paths (src/auth/login.ts, src/auth/token.ts, src/middleware/auth-check.ts)",
+        "All goals are created using spec goals create commands run from the goals-app directory",
+        "Goal titles are self-contained -- a reader with no context can understand what each goal is about"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I'm picking up where another developer left off. What goals are currently in progress or still need to be done?",
+      "expected_output": "The agent queries existing goals by state before taking any action. It lists in_progress and todo goals and summarizes them for the user.",
+      "assertions": [
+        "The agent runs spec goals list --state in_progress",
+        "The agent runs spec goals list --state todo",
+        "The agent does NOT create any new goals",
+        "The agent presents a summary of the pending work based on the query results"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I finished the database migration task. Mark it as done and create a follow-up goal to update the API documentation for the new schema.",
+      "expected_output": "The agent finds the database migration goal, updates its state to completed, and creates a new goal for the documentation update with enough context for another agent to act on it.",
+      "assertions": [
+        "The agent queries goals to find the database migration task (e.g. spec goals list or spec -j goals list)",
+        "The agent runs spec goals update --id <N> --state completed with the correct goal ID",
+        "A new goal is created for documentation update with --title and --description",
+        "The new goal description mentions the new schema or database migration so a future agent has context"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "hey can you delete all the completed goals to clean things up",
+      "expected_output": "The agent lists completed goals first, then deletes them one by one. It confirms what was deleted.",
+      "assertions": [
+        "The agent runs spec goals list --state completed before deleting anything",
+        "The agent uses spec goals delete --id <N> for each completed goal",
+        "The agent does NOT delete goals that are in todo or in_progress state",
+        "The agent reports which goals were deleted"
+      ]
+    }
+  ]
+}
