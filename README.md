@@ -6,8 +6,10 @@ A collection of reusable [Agent Skills](https://agentskills.io) -- `SKILL.md` fi
 
 | Skill | Description |
 |-------|-------------|
+| [agility-rest-skill](.agents/skills/agility-rest-skill/SKILL.md) | Query and manage Portfolio Items, Stories, and Defects in Digital.ai Agility via the REST API. |
 | [create-skill](.agents/skills/create-skill/SKILL.md) | Guides creation of Agent Skills (SKILL.md files) following the agentskills.io specification. |
 | [goals-app](.agents/skills/goals-app/SKILL.md) | Manage persistent goals and sub-goals across agent sessions using the goals-app CLI. |
+| [release-plugin](.agents/skills/release-plugin/SKILL.md) | Build, test, and maintain container-based integration plugins for Digital.ai Release. |
 | [specscript-tests](.agents/skills/specscript-tests/SKILL.md) | Creates SpecScript test files (.spec.yaml) for the goals-app project. |
 
 ## Usage
