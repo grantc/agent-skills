@@ -200,7 +200,21 @@ curl -s -H "Authorization: Bearer <token>" \
 ```
 
 ## UI URL Pattern
-To link to an asset in the Agility web UI:
+
+### Preferred: by display number (no OID lookup needed)
+Use the `assetdetail.v1` endpoint with the display number directly:
+```
+https://www7.v1host.com/V1Production/assetdetail.v1?number={Number}
+```
+Examples:
+- Epic E-19550: `https://www7.v1host.com/V1Production/assetdetail.v1?number=E-19550`
+- Story S-125773: `https://www7.v1host.com/V1Production/assetdetail.v1?number=S-125773`
+- Defect D-42068: `https://www7.v1host.com/V1Production/assetdetail.v1?number=D-42068`
+
+This pattern works for all asset types (Epics, Stories, Defects) and does not require an OID lookup. **Always prefer this pattern when generating UI links.**
+
+### Alternative: by OID
+If you already have the OID from an API response, you can also link directly:
 ```
 https://www7.v1host.com/V1Production/{AssetType}.mvc/Summary?oidToken={AssetType}:{id}
 ```
@@ -208,7 +222,7 @@ Examples:
 - Epic E-19550: `https://www7.v1host.com/V1Production/Epic.mvc/Summary?oidToken=Epic:3370498`
 - Story S-125773: `https://www7.v1host.com/V1Production/Story.mvc/Summary?oidToken=Story:3459190`
 
-Note: The `{id}` in the URL is the **OID number** (e.g., `3370498`), NOT the display number (e.g., `19550`). Use the `ID` or `id` field from API responses to construct these URLs.
+Note: The `{id}` in this URL is the **OID number** (e.g., `3370498`), NOT the display number (e.g., `19550`). Use the `ID` or `id` field from API responses to construct these URLs.
 
 ## Configuration File
 Default config file path: `./agility-rest.config.json` (next to `SKILL.md`)
@@ -244,7 +258,8 @@ When an agent uses this skill, it should:
 - **Use `Category.Name`** to distinguish Epic subtypes: `Category.Name='Epic'`, `Category.Name='Feature'`, etc.
 - **Check `Super=''`** to find orphaned Stories/Defects with no parent Epic
 - **Use `Number`** field for display-friendly IDs (e.g., E-19550, S-125773, D-45678)
-- **Use `id`** field from response for OID-based references and URL construction
+- **Use `assetdetail.v1?number=` URLs** for UI links (e.g., `assetdetail.v1?number=E-19550`) — no OID lookup needed
+- **Use `id`** field from response only when OID-based references are needed (e.g., for API relation filters like `Super='Epic:12345'`)
 - **Keep `limit` conservative** (20-50) unless bulk retrieval is needed
 - **URL-encode `where` clauses** in curl — single quotes become `%27`, semicolons become `%3B`, equals becomes `%3D`, spaces become `+`
 - **For creation**, always set `Scope` explicitly — it is NOT inherited from parent
