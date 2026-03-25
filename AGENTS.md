@@ -7,13 +7,17 @@ This repository contains Agent Skills definitions following the [agentskills.io]
 ```
 .agents/
   skills/
-    create-skill/       # Skill for authoring new SKILL.md files
+    agility-rest-skill/  # Query and manage work items in Digital.ai Agility
+      SKILL.md
+    create-skill/        # Skill for authoring new SKILL.md files
       SKILL.md
       evals/evals.json
-    goals-app/           # Skill for persistent goal tracking with SpecScript
+    goals-app/           # Persistent goal tracking with SpecScript
       SKILL.md
       evals/evals.json
-    specscript-tests/    # Skill for writing SpecScript test files
+    release-plugin/      # Build container-based plugins for Digital.ai Release
+      SKILL.md
+    specscript-tests/    # Write SpecScript test files for goals-app
       SKILL.md
 ```
 
