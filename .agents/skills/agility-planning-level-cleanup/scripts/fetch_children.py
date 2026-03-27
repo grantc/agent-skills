@@ -2,7 +2,9 @@
 """
 Fetch all Stories and Defects under portfolio items of a given category on a planning level.
 
-Uses bulk scope-level queries with nested attribute filtering -- NOT per-item queries.
+Uses bulk queries with Super.Scope filtering to capture children across ALL scopes,
+not just the planning level scope itself. This is critical because children often
+live in different scopes than their parent portfolio item.
 
 Usage:
     python3 fetch_children.py --scope "26.1 DevOps" --parent-category Sub-Feature --output children.json
@@ -31,7 +33,7 @@ ASSET_STATE_MAP = {0: "Future", 64: "Active", 128: "Closed", 200: "Template", 20
 CHILD_FIELDS = [
     "Name", "Number", "Status.Name", "Team.Name", "Timebox.Name",
     "Estimate", "Super.Name", "Super.Number", "Super.Category.Name",
-    "AssetState", "Owners.Name", "ChangeDate",
+    "AssetState", "Owners.Name", "ChangeDate", "Scope.Name",
 ]
 
 
@@ -76,7 +78,7 @@ def fetch_paginated(asset_type, scope_oid, parent_category, token, page_size=500
     """Fetch all assets of given type, paginating automatically."""
     sel = ",".join(CHILD_FIELDS)
     where = urllib.parse.quote(
-        f"Scope='{scope_oid}';Super.Category.Name='{parent_category}';AssetState!='255'"
+        f"Super.Scope='{scope_oid}';Super.Category.Name='{parent_category}';AssetState!='255'"
     )
     all_assets = []
     offset = 0
@@ -121,6 +123,7 @@ def flatten_child(asset):
         "timebox": attrs["Timebox.Name"]["value"],
         "estimate": attrs["Estimate"]["value"],
         "owners": owners,
+        "scope": attrs["Scope.Name"]["value"],
         "parent_number": attrs["Super.Number"]["value"],
         "parent_name": attrs["Super.Name"]["value"],
         "parent_category": attrs["Super.Category.Name"]["value"],

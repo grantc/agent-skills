@@ -5,6 +5,7 @@
 - User wants to find Sub-Features, Features, or Epics that are ready to close
 - User wants to bulk-update statuses or close portfolio items on a planning level
 - User asks about work item completion status across a planning level
+- User wants to generate reports of open/completable work on a planning level
 
 ## Overview
 
@@ -12,10 +13,11 @@ This skill provides workflows and Python scripts for auditing and cleaning up
 a planning level (Scope) in Digital.ai Agility. The typical workflow is:
 
 1. **Fetch** all portfolio items (Sub-Features/Features/Epics) on a planning level
-2. **Fetch** all children (Stories + Defects) for those portfolio items
-3. **Analyze** which portfolio items have all children closed and are ready to close
+2. **Fetch** all children (Stories + Defects) for those portfolio items — **across all scopes**
+3. **Analyze** which portfolio items are "effectively done" and ready for completion
 4. **Update** statuses (e.g. mark as "Completed")
 5. **Close** portfolio items via the Inactivate operation
+6. **Report** on remaining open items for owner decision-making
 
 ## Prerequisites
 
@@ -93,22 +95,33 @@ Authorization: Bearer {AGILITY_TOKEN}
 ### Efficient Bulk Querying
 
 **Do NOT query children one-by-one per portfolio item.** Instead, use scope-level
-filters with nested attributes:
+filters with nested attributes.
+
+#### Cross-Scope Querying (Critical)
+
+Children (Stories/Defects) often live in a **different scope** than their parent
+portfolio item. For example, a Sub-Feature in "26.1 DevOps" may have children in
+"DevOps" (parent scope), "UXD", "DevOps Delivery", etc.
+
+**Always use `Super.Scope` instead of `Scope` when fetching children** to get
+all children regardless of which scope they live in:
 
 ```
-# Get ALL Stories under Sub-Features in a scope -- single query
-GET rest-1.v1/Data/Story?sel=Name,Number,Status.Name,Super.Number,...
+# WRONG — misses children in other scopes (607 results in 26.1):
+GET rest-1.v1/Data/Story?sel=...
     &where=Scope='Scope:3234178';Super.Category.Name='Sub-Feature';AssetState!='255'
-    &page=500,0
+
+# CORRECT — gets ALL children whose parent is in the scope (1100 results in 26.1):
+GET rest-1.v1/Data/Story?sel=...
+    &where=Super.Scope='Scope:3234178';Super.Category.Name='Sub-Feature';AssetState!='255'
 ```
 
-This fetches all Stories whose parent is a Sub-Feature in that scope. Paginate with
-`page=500,0`, `page=500,500`, etc. until you get fewer than pageSize results.
+This is a critical difference — in 26.1 DevOps, scope-only queries returned 607
+children while `Super.Scope` queries returned 1,100 (nearly double). Children were
+spread across 15 different scopes including DevOps, UXD, DevOps Delivery, 25.3-DevOps,
+AppMgt/AppSec, DevOps Docs, and others.
 
-The same works for Defects:
-```
-GET rest-1.v1/Data/Defect?sel=...&where=Scope='...';Super.Category.Name='Sub-Feature';AssetState!='255'&page=500,0
-```
+Paginate with `page=500,0`, `page=500,500`, etc. until you get fewer than pageSize results.
 
 ### Updating Status
 
@@ -136,6 +149,10 @@ curl -s -X POST \
 
 All scripts are in `scripts/` relative to this skill. They use only Python stdlib
 and read `AGILITY_TOKEN` from the environment.
+
+**Note:** `fetch_children.py` currently filters by `Scope` (child's scope), which
+misses cross-scope children. For accurate analysis, use `Super.Scope` queries
+directly (see "Cross-Scope Querying" above) or update the script accordingly.
 
 ### scripts/fetch_subfeatures.py
 
@@ -217,3 +234,69 @@ python3 scripts/close_items.py --input report.json --filter ready_to_close
 - Use `page=500,0` for bulk queries, paginate until results < pageSize
 - Remember: changing Status to "Completed" and Closing (Inactivate) are separate operations
 - UI links use: `https://www7.v1host.com/V1Production/assetdetail.v1?number={Number}`
+
+## Effectively Done Criteria
+
+A child (Story/Defect) is **effectively done** if any of these are true:
+- Asset State is **Closed** (128) — formally closed
+- Status is **Done** or **DONE** (case-insensitive) — work completed but not formally closed
+- Status is **Not Doing** — work deliberately skipped, also terminal
+
+A portfolio item (Sub-Feature/Feature/Epic) is **ready for completion** when ALL
+its children are effectively done. This is broader than just checking Asset State
+and catches the common case where teams mark Stories as "Done" without formally
+closing them.
+
+### Readiness Categories
+
+When analyzing a planning level, portfolio items fall into these categories:
+
+| Category | Criteria | Action |
+|---|---|---|
+| Already Closed | Asset State = Closed (128) | None needed |
+| All children formally Closed | All children have state=128 | Can be Closed (Inactivated) |
+| All children effectively Done | All children Closed or Done/Not Doing | Should be marked "Completed" first |
+| Has genuinely open children | Some children not Done | Needs owner decision |
+| No children | Zero Stories/Defects | May be empty placeholder — review |
+
+### Status vs Asset State
+
+These are **independent** in Agility:
+- **Status** = workflow field set by users (e.g. "Done", "In Progress")
+- **Asset State** = lifecycle state (Active/Closed/Deleted)
+
+A Story with Status="Done" but AssetState=Active is finished work that hasn't been
+formally closed. This is extremely common — in 26.1 DevOps, 451 of 559 active
+children had Done/Not Doing status.
+
+## Report Patterns
+
+### Completable Sub-Features Report
+For showing which portfolio items can be marked Completed:
+- Group by **Team** (from the portfolio item level)
+- Include: Sub-Feature number (hyperlinked), Name, Owner, SF Status, children counts
+- Separate sections for "effectively done" vs "formally closed"
+- Exclude items that already have Completed status (to show only actionable items)
+- Save as markdown with hyperlinks using `assetdetail.v1?number=` pattern
+
+### Open Stories Report
+For owner decision-making on remaining open work:
+- Group by **Team** (from the Sub-Feature level)
+- Each Sub-Feature section shows: Owner, Status, count of open items
+- List each open child with: number (hyperlinked), name, status, iteration, team, scope
+- Include iteration/sprint info — items with no iteration likely were never picked up
+- Items already in future sprints (e.g. 26.3) may need to be reparented to a new Sub-Feature
+- Sub-Features should only apply to a single planning level in DevOps
+
+## Data Files
+
+When running this workflow, the following data files are typically generated
+in the project root:
+
+| File | Contents |
+|---|---|
+| `subfeatures_26_1_devops.json` | All Sub-Features with metadata |
+| `children_cross_scope_26_1.json` | All children across all scopes (use this, not scope-filtered) |
+| `readiness_cross_scope_26_1.json` | Readiness analysis with effectively-done criteria |
+| `completable_subfeatures_26_1.md` | Markdown report of completable Sub-Features by team |
+| `open_stories_26_1.md` | Markdown report of open items needing owner decisions |

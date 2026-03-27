@@ -43,6 +43,17 @@ When the user says "Epics" they typically mean `Category.Name='Epic'`. When they
 
 To exclude deleted items, add `AssetState!='255'` to `where` clauses.
 
+### Status vs Asset State
+**Status** and **Asset State** are independent concepts in Agility:
+- **Asset State** is the lifecycle state (Future/Active/Closed/Deleted) — controls visibility and is changed via operations like Inactivate
+- **Status** is a workflow field (e.g. "In Progress", "Done", "Completed") — set by users/teams to indicate progress
+
+A Story can have Status = "Done" but Asset State = Active (64). This means the work is finished but the item has not been formally closed. When assessing completion, check **both** fields.
+
+Common Story/Defect status values in DevOps: `Done`, `DONE`, `Not Doing`, `To Do`, `TO DO`, `In Progress`, `Testing`, `TESTING`, `Developing`, `Code Review`, `QA Done`, `Review`, `Abandoned`, `Product Review`, `Completed`
+
+Common Epic/Sub-Feature status values: `Completed`, `In Progress`, `Review`, `Discovery`, `Breakdown`, `Not Doing`
+
 ### Key Relationships
 - `Epic.Super` -> parent Epic (for Epic-to-Epic hierarchy)
 - `Story.Super` / `Defect.Super` -> parent Epic
@@ -51,6 +62,24 @@ To exclude deleted items, add `AssetState!='255'` to `where` clauses.
 - `Story.Timebox` / `Defect.Timebox` -> Sprint/Iteration
 - `Epic.Subs` -> child Epics (multi-value)
 - `Epic.ChildrenMeAndDown` -> all descendant stories/defects
+
+### Cross-Scope Children (Critical)
+**Children (Stories/Defects) can live in a different Scope than their parent Epic.**
+For example, a Sub-Feature in "26.1 DevOps" (Scope:3234178) may have children in:
+- "DevOps" (parent scope, Scope:1731677)
+- "UXD" (completely different scope)
+- "DevOps Delivery", "25.3-DevOps", etc.
+
+When querying children by scope (`Scope='Scope:3234178'`), you will **miss children in other scopes**. To get ALL children regardless of scope, filter on the **parent's scope** instead:
+```
+# WRONG — misses cross-scope children:
+where=Scope='Scope:3234178';Super.Category.Name='Sub-Feature'
+
+# CORRECT — gets all children whose parent is in the scope:
+where=Super.Scope='Scope:3234178';Super.Category.Name='Sub-Feature'
+```
+
+This can be a massive difference. In 26.1 DevOps, scope-only queries returned 607 children while `Super.Scope` queries returned 1,100 — nearly double.
 
 ### Scope (Planning Level) — DevOps Example
 The DevOps planning level has **two Scopes** both named "DevOps". The correct one for Epics is:
@@ -264,6 +293,9 @@ When an agent uses this skill, it should:
 - **URL-encode `where` clauses** in curl — single quotes become `%27`, semicolons become `%3B`, equals becomes `%3D`, spaces become `+`
 - **For creation**, always set `Scope` explicitly — it is NOT inherited from parent
 - **For Epics/Features**, set `Category` to the correct `EpicCategory` OID (e.g., `EpicCategory:148` for Feature)
+- **Use `Super.Scope` for cross-scope children queries** — children often live in different scopes than their parent Epic. Filter on `Super.Scope='Scope:...'` instead of `Scope='Scope:...'` to get all children regardless of their own scope
+- **Distinguish Status from Asset State** — a Story with Status="Done" and AssetState=Active is finished work not yet formally closed. Check both fields when assessing completion
+- **Include `Accept: application/json` header on POST requests** — without it, the response may be empty or XML
 - Present results in **concise tabular format** when possible
 - Include **UI links** for key assets using the URL pattern above
 
@@ -275,7 +307,25 @@ These are reference values; verify with a query if unsure:
 - Sub-Feature: query `EpicCategory?where=Name='Sub-Feature'`
 
 ### DevOps Teams (26.1 scope)
-Alphas, Apollo, Dry Bones, FI Deploy, Integrations, Judo, Lambdas, Mario, PM DevOps, Sonic
+Alphas, Apollo, Dry Bones, FI Deploy, Integrations, Judo, Lambdas, Leonardo, Mario, PM DevOps, Robotix, Sonic, Vanguard
+
+### Known Scope OIDs (DevOps)
+
+| Scope | OID | Parent |
+|---|---|---|
+| DevOps (root) | `Scope:1731677` | — |
+| 26.1 DevOps | `Scope:3234178` | DevOps |
+
+### Known Status OIDs (DevOps Epics)
+
+| OID | Name |
+|---|---|
+| `EpicStatus:1905281` | Completed |
+| `EpicStatus:670492` | In Progress |
+| `EpicStatus:670502` | Review |
+| `EpicStatus:559703` | Discovery |
+| `EpicStatus:1905275` | Breakdown |
+| `EpicStatus:2200973` | Not Doing |
 
 ## Output
 Success prints JSON:
